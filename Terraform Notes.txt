@@ -1,17 +1,5 @@
-Cloud Burner Account Details
-
-471400368851
-shekhar.shekhar@publicissapient.com 
-Saibaba2023!
-
-Github
-siyer70@gmail.com
-ACEG12ab!
-
 Installing
 EC2 Provisioning
-
-
 
 Modules
 Workspaces
