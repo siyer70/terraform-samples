@@ -1,0 +1,77 @@
+Cloud Burner Account Details
+
+471400368851
+shekhar.shekhar@publicissapient.com 
+Saibaba2023!
+
+Github
+siyer70@gmail.com
+ACEG12ab!
+
+Installing
+EC2 Provisioning
+
+
+
+Modules
+Workspaces
+Provisioners
+
+
+Remote state management
+Git
+Security Primers
+Vault
+
+
+Enterprise version of Terraform
+Sentinel
+Terraform Cloud
+Linters
+CI/CD 
+Integration
+
+
+Assessment test
+
+ITGP&!fusr86
+
+https://shekharshekhar.signin.aws.amazon.com/console
+
+
+AKIAW3QNGZLJZ752JKF5
+ZIVWV519NfHW65e/SU9w66yOsVWtdUrlcjORcizV
+
+
+aws configure
+aws sts get-caller-identity
+
+terraform init
+terraform plan
+terraform apply
+terraform destroy
+
+
+- Attributes
+- large infrastructure
+
+
+Modules
+Workspaces
+Provisioners
+
+
+S3 backend - State locking
+Unlock the states
+
+
+Sentinel
+
+Policies - example: type of ec2 that can be created
+
+Checkoffs - it is like PMD and check style - formatting 
+
+Linters - tool that scans the code for programmatic and style related issues
+
+HashiCorp Certified: Terraform Associate l 4th Dec - 8th Dec
+

@@ -1,0 +1,954 @@
+Welcome to OpenDev Etherpad!
+
+This pad text is synchronized as you type, so that everyone viewing this page sees the same text. This allows you to collaborate seamlessly on documents!
+
+OpenDev: https://opendev.org
+Etherpad on Github: https://github.com/ether/etherpad-lite
+
+HashiCorp Teraform Training at Publicis Sapient ( 4 Dec 2023 )
+
+Day 1:
+    
+1. Install Terraform: https://developer.hashicorp.com/terraform/install
+2. Confirm terraform installation by running $terraform -version
+3. Install the visual studio code IDE: https://code.visualstudio.com/download
+4. Launch vs code and Install the "HarshiCorp Terraform" extension
+5. Create a dedicated directory for complete training: $mkdir batch4-8Dec
+6. $cd batch4-8Dec
+7. $code .  //to launch vs code from terminal
+8. Login in AWS burner account using the credentials provided by the team.
+9. Create IAM user in AWS to authenticate and deploy terraform code -> Search for IAM service from the search bar at the top -> click on users -> click create user -> name your user and click next -> attach a policy[AdministratorAccess] and click next -> add tags optionally and click next -> create user -> After the user is created, go to that user -> click security credentials -> create access key -> dounload the .csv file and place it at a secure location.
+10. One way of authenticating with AWS  //not recommended in real environments
+provider "aws" {
+  access_key = "PUT-ACCESS-KEY"
+  secret_key = "PUT-SECRET-KEY"
+  region = "us-east-1"
+}
+11. Another way if using aws cli -> install it following the documentation https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html -> confirm using $aws --version
+output: aws-cli/2.7.2 Python/3.9.11 Darwin/23.0.0 exe/x86_64 prompt/off
+12. $aws configure
+enter access key, secret key and the region[keep ouput as default]
+13. For confirmation run $aws sts get-caller-identity
+output: {
+    "UserId": "AIDAXST7V5CIZWU5TNPXF",
+    "Account": "account number",
+    "Arn": "arn:aws:iam::<account number>:user/terraformuser"
+}
+14. Create your first ec2 instance using terraform
+code:
+    
+provider "aws" {}
+resource "aws_instance" "myec2" {
+  ami = "ami-0230bd60aa48260c6"
+  instance_type = "t2.micro"
+}
+15. command to use:
+$terraform init
+$terraform plan
+$terraform apply
+
+Output:
+aws_instance.myec2: Creating...
+aws_instance.myec2: Still creating... [10s elapsed]
+aws_instance.myec2: Still creating... [20s elapsed]
+aws_instance.myec2: Still creating... [30s elapsed]
+aws_instance.myec2: Creation complete after 38s [id=i-086d20a3c510c1317]
+
+Apply complete! Resources: 1 added, 0 changed, 0 destroyed.
+
+16.  create a github repo
+terraform {
+  required_providers {
+    github = {
+        source = "integrations/github"
+        version = "~> 5.0"
+    }
+  }
+}
+
+provider "github" {
+  token = ""
+}
+
+resource "github_repository" "demoRemo" {
+  name = "test"
+  description = "My codebase"
+  visibility = "public"
+}
+
+17: Documentation link for Hashicorp/AWS: https://registry.terraform.io/providers/hashicorp/aws/latest/docs
+18. terraform refresh
+
+--------------------------------------------------------------------------------
+Day 2
+
+1. attribute.tf
+
+provider "aws" {
+  
+}
+
+resource "aws_eip" "lb" {
+  vpc =  true
+}
+
+output "eip" {
+  value = aws_eip.lb.public_ip
+}
+
+resource "aws_s3_bucket" "mys3" {
+  bucket = "training-day-02"
+}
+
+output "mys3bucket" {
+  value = aws_s3_bucket.mys3.arn
+}
+
+2. lab1.tf
+
+resource "aws_eip" "lb" {
+  vpc =  true
+}
+
+output "eip" {
+  value = aws_eip.lb.public_ip
+}
+
+resource "aws_instance" "myec2" {
+  ami = "ami-0230bd60aa48260c6"
+  instance_type = "t2.micro"
+}
+
+resource "aws_eip_association" "eip_assoc" {
+  instance_id = aws_instance.myec2.id
+  allocation_id = aws_eip.lb.id
+}
+
+3. lab2.tf
+
+resource "aws_eip" "lb" {
+  vpc =  true
+}
+
+output "eip" {
+  value = aws_eip.lb.public_ip
+}
+
+resource "aws_security_group" "allow_eip" {
+  name = "day2-security-group"
+  ingress {
+    from_port = 443
+    to_port = 443
+    protocol = "tcp"
+    cidr_blocks = ["${aws_eip.lb.public_ip}/32"]
+  }
+}
+
+4. Understanding Variables
+sg.tf
+
+resource "aws_security_group" "allow_eip" {
+  name = "day2-security-group"
+
+  ingress {
+    from_port = 443
+    to_port = 443
+    protocol = "tcp"
+    cidr_blocks = [var.vpn_id]
+  }
+  ingress {
+    from_port = 80
+    to_port = 80
+    protocol = "tcp"
+    cidr_blocks = [var.vpn_id]
+  }
+  ingress {
+    from_port = 53
+    to_port = 53
+    protocol = "tcp"
+    cidr_blocks = [var.vpn_id]
+  }
+}
+
+variables.tf
+
+variable "vpn_id" {
+   default = "116.30.45.51/32"
+}
+
+dev.tfvars
+
+vpn_id = "116.30.45.55/32"
+
+5. data Types
+
+datatype.tf
+
+provider "aws" {}
+
+resource "aws_elb" "test" {
+  name = var.elb_name
+  availability_zones = var.az
+
+  listener {
+    instance_port = 8000
+    instance_protocol = "http"
+    lb_port = 80
+    lb_protocol = "http"
+  }
+
+  health_check {
+    healthy_threshold = 2
+    unhealthy_threshold = 2
+    timeout = 3
+    target = "HTTP:8000/"
+    interval = 30
+  }
+
+  cross_zone_load_balancing = true
+  idle_timeout = var.timeout
+  connection_draining = true
+  connection_draining_timeout = var.timeout
+
+  tags = {
+    Name = "terrform created elb"
+  }
+}
+
+variables.tf
+
+variable "elb_name" {
+  type = string
+}
+
+variable "az" {
+  type = list
+}
+
+variable "timeout" {
+  type = number
+}
+
+terraform.tfvars
+
+elb_name = "myelb"
+timeout = 400
+az = ["us-east-1a","us-east-1b"]
+
+6. Conditional
+
+conditional.tf
+
+provider "aws" {}
+
+variable "istest" {
+    default = false
+    type = bool
+}
+
+resource "aws_instance" "dev" {
+  ami = "ami-0230bd60aa48260c6"
+  instance_type = "t2.micro"
+  count = var.istest == true ? 3 : 0
+}
+
+resource "aws_instance" "prod" {
+  ami = "ami-0230bd60aa48260c6"
+  instance_type = "t2.micro"
+  count = var.istest == false ? 1 : 0
+}
+
+7. Count
+count.tf
+
+provider "aws" {}
+
+variable "elb_names" {
+  type = list
+  default = ["dev-lb","stage-lb","prod-lb"]
+}
+
+resource "aws_iam_user" "user" {
+  name = var.elb_names[count.index]
+  count = 3
+  path = "/system/"
+}
+
+8. locals
+
+locals.tf
+
+provider "aws" {
+}
+
+locals {
+  common_tags = {
+    Owner = "Backend Team"
+    service = "backend"
+  }
+}
+
+resource "aws_instance" "myec2" {
+  ami = "ami-0230bd60aa48260c6"
+  instance_type = "t2.micro"
+  tags = local.common_tags
+}
+
+resource "aws_instance" "testec2" {
+  ami = "ami-0230bd60aa48260c6"
+  instance_type = "t2.micro"
+  tags = local.common_tags
+}
+
+
+LAB
+
+# Lab Scenario:
+# You are tasked with creating multiple AWS S3 buckets with different configurations based on the environment (dev, prod). Each bucket should have a unique name and specific configurations.
+
+# Lab Objectives:
+# Use count and count.index to create multiple S3 buckets.
+# Utilize data types such as strings and maps for configuration.
+# Implement conditional expressions to set different configurations based on the environment.
+# Use local variables to make the configuration more readable and maintainable.
+
+variable "envname" {
+    type = list(string)
+    default = ["dev", "uat", "prod"]
+}
+
+resource "aws_s3_bucket" "srchan_bucket" {
+    bucket = "srchan-s3-bucket-${var.envname[count.index]}"
+    count = 3
+    
+    tags = {
+        Name        = "srchan_bucket_${var.envname[count.index]}"
+        Environment = var.envname[count.index] == "prod" ? "Prod Instance" : "Non Prod Instance"
+
+  }
+
+
+}
+
+locals {
+  common_tags = {
+    Name = "General"
+    Environment = "common"
+  }
+}
+
+resource "aws_s3_bucket" "log_bucket" {
+  bucket = "my-tf-log-bucket"
+  tags = local.common_tags
+}
+
+resource "aws_s3_bucket_acl" "log_bucket_acl" {
+  bucket = aws_s3_bucket.log_bucket.id
+  acl    = "log-delivery-write"
+}
+
+
+Dynamic Block
+
+provider "aws" {}
+
+variable "sg_ports" {
+  type = list(number)
+  description = "list of ingress ports"
+  default = [443,80,53,8300]
+}
+
+resource "aws_security_group" "dynamicsg" {
+  name = "dynamic-sg"
+
+  dynamic "ingress" {
+    for_each = var.sg_ports
+    iterator = port
+    content {
+      from_port = port.value
+      to_port = port.value
+      protocol = "tcp"
+      cidr_blocks = ["0.0.0.0/0"]
+    }
+  }
+}
+
+--------------------------------------
+
+Day 3
+
+1. terraform Registry: https://registry.terraform.io/
+2. understanding modules
+
+modules/ec2/ec2.tf
+
+resource "aws_instance" "myec2" {
+  ami = "ami-0230bd60aa48260c6"
+  instance_type = var.instancetype
+}
+
+modules/ec2/variables.tf
+
+ 
+
+projects/A/myec2.tf
+
+provider "aws" {}
+
+module "ec2module" {
+  source = "../../modules/ec2"
+  instancetype = "t2.small"
+}
+
+
+LABS
+
+LAB 1
+
+Lab Scenario:
+You are tasked with deploying an S3 bucket on AWS using Terraform. To organize your code and promote reusability, you need to create a Terraform module for the S3 bucket.
+
+Lab Objectives:
+Create a Terraform module for an AWS S3 bucket.
+Use this module to deploy a simple S3 bucket.
+
+
+LAB 2
+
+Lab Scenario:
+You are tasked with deploying a web server infrastructure on AWS using Terraform. To enhance reusability and maintainability, you need to create Terraform modules for the web server components.
+
+Lab Objectives:
+Create a Terraform module for an AWS VPC (Virtual Private Cloud).
+Create a Terraform module for an AWS EC2 instance to act as a web server.
+Use these modules to deploy a simple web server infrastructure.
+
+LAB 3
+
+Lab Scenario:
+You are tasked with deploying a multi-tier infrastructure on AWS using Terraform. The architecture consists of a VPC, security groups, and EC2 instances for web and database servers.
+
+Lab Objectives:
+Create a Modular VPC Configuration:
+
+Objective: Define a Terraform module that creates an AWS VPC with a specified CIDR block and a name tag.
+Create Modular Security Groups:
+
+Objective: Design a module for AWS security groups within the specified VPC. Allow customization of security group rules.
+Implement Modular EC2 Instances:
+
+Objective: Develop a module for AWS EC2 instances, allowing the deployment of web server instances in a public subnet and database server instances in a private subnet.
+Compose the Multi-Tier Infrastructure:
+
+Objective: Use the defined modules (vpc, security_groups, ec2) to compose a multi-tier infrastructure. Specify the relationships between modules (e.g., VPC ID in security groups, subnet IDs in EC2 instances).
+Enhance Code Reusability:
+
+Objective: Demonstrate how the modular approach enhances code reusability. Modules can be reused across different environments or projects with minimal changes.
+Deploy and Verify Infrastructure:
+
+Objective: Execute Terraform commands (init, plan, apply) to deploy the infrastructure. Verify the resources created on AWS to ensure the successful deployment of the multi-tier architecture.
+
+--------------------------------------------------
+
+Terraform Workspace
+
+Useful commands:
+    
+terraform workspace -h
+terraform workspace show
+terraform workspace new dev
+terraform workspace new prd
+terraform workspace list
+terraform workspace select dev
+variable "instance_type" {
+  type = map
+  default = {
+    default = "t2.nano"
+    dev = "t2.micro"
+    prod = "t2.large"
+  }
+}
+
+
+remote-exec
+
+resource "aws_instance" "myec2" {
+  ami = "ami-0230bd60aa48260c6"
+  instance_type = "t2.micro"
+  key_name = "terraform-key"
+
+  connection {
+    type = "ssh"
+    user = "ec2-user"
+    private_key = file("./terraform-key.pem")
+    host = self.public_ip
+  }
+
+  provisioner "remote-exec" {
+    inline = [ 
+        "sudo dnf install nginx -y",
+        "sudo systemctl start nginx"
+     ]
+  }
+}
+
+
+LABS on Workspace and provisioners
+
+Lab Scenario 1: Terraform Workspaces for Environment Management
+Scenario:
+You are a DevOps engineer responsible for managing infrastructure on AWS using Terraform. Your organization has separate development (dev) and production (prod) environments, and you need to ensure that infrastructure deployments can be easily managed and maintained for both environments. Terraform workspaces are the chosen solution for this purpose.
+
+
+Lab Tasks:
+
+Initialize Terraform Project:
+
+Create a new directory for your Terraform project.
+Initialize the Terraform project and create a basic configuration file.
+Deploy Infrastructure for Dev Environment:
+
+Create a new workspace for the development environment.
+Deploy the infrastructure for the development environment and verify its creation.
+Modify Configuration for Prod Environment:
+
+Update the Terraform configuration to include different settings for the production environment.
+Deploy Infrastructure for Prod Environment:
+
+Switch to the production workspace.
+Deploy the infrastructure for the production environment and verify its creation.
+
+Clean Up:
+Destroy the created resources to clean up the environment.
+
+
+Lab Scenario 2:
+
+Use both local-exec and remote-exec provisioners in Terraform. The local-exec provisioner will be used to run a local command, and the remote-exec provisioner will be used to execute commands on a remote AWS EC2 instance.
+
+Local Execution: Create an AWS EC2 instance and use local-exec to run a local command that echoes a message to a local file.
+Remote Execution: Extend the lab to SSH into the created EC2 instance and use remote-exec to run commands that echoes a message to a file on the remote instance.
+
+Lab Scenario 3:
+    
+Create an AWS EC2 instance and use a local-exec provisioner to create a local file during the apply phase. Then, during the destroy phase, use another local-exec provisioner to remove that local file.
+
+ref: https://developer.hashicorp.com/terraform/language/resources/provisioners/local-exec#when
+
+
+https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html
+
+
+Refer a module with a tag 
+
+module "example" {
+  source = "github.com/your-username/terraform-modules//example-module?ref=v1.0.0"
+  # Other input variables, if needed 
+}
+
+Refer a module with a branch
+
+module "example" {  
+    source = "github.com/your-username/terraform-modules//example-module?ref=your-branch-name"  
+    # Other input variables, if needed 
+}
+
+
+
+
+REMOTE BACKEND CODE REF
+
+backend.tf
+
+terraform {
+  backend "s3" {
+    bucket = "day4-terraform-training"
+    key    = "security/terraform.tfstate"
+    region = "us-east-1"
+    dynamodb_table = "terraform-locking-day4"
+  }
+}
+
+eip.tf
+
+resource "aws_eip" "lb" {
+   vpc = true
+}
+
+provider "aws" {}
+
+resource "time_sleep" "wait_200_seconds" {
+  create_duration = "200s"
+}
+
+
+
+LABS - Day 4
+
+Scenario:
+As a DevOps engineer in a growing company, you are responsible for managing the infrastructure for two independent projects. The projects, named Project1 and Project2, have different requirements and resources. Your goal is to implement a robust Terraform infrastructure with each project having its own isolated state file stored remotely in an S3 bucket.
+
+Task:
+
+1. Project Initialization:
+Create two separate directories named project1 and project2 to represent the two projects.
+
+2. Remote Backend Configuration:
+Implement a remote backend configuration for both projects using Amazon S3. Ensure that each project has its own state file in the S3 bucket. Configure a DynamoDB table for state locking to prevent concurrent executions.
+
+3. Project1 Configuration:
+In the project1 directory, create a Terraform configuration (main.tf) that provisions an AWS instance. Tag the instance with the name "project1-instance."
+
+4. Project2 Configuration:
+In the project2 directory, create a Terraform configuration (main.tf) that provisions a different AWS instance. Tag the instance with the name "project2-instance."
+
+5. Initialize and Apply for Project1:
+Run the necessary commands to initialize and apply the Terraform configuration for Project1. Verify that the AWS instance is created successfully.
+
+6. Initialize and Apply for Project2:
+Run the necessary commands to initialize and apply the Terraform configuration for Project2. Verify that the AWS instance is created successfully.
+
+7. Resource Cleanup for Project1:
+In the project1 directory, execute the Terraform commands to destroy the AWS resources created for Project1.
+
+8. Resource Cleanup for Project2:
+In the project2 directory, execute the Terraform commands to destroy the AWS resources created for Project2.
+
+9. Cleanup:
+Manually remove the S3 bucket used for storing the Terraform state files.
+
+
+Remote State
+
+network-project/eip.tf
+
+provider "aws" {}
+
+terraform {
+  backend "s3" {
+    bucket = "remote-state-bucket-day4"
+    key    = "network/eip.tfstate"
+    region = "us-east-1"
+  }
+}
+
+resource "aws_eip" "lb" {
+  vpc = true
+}
+
+output "eip_addr" {
+  value = aws_eip.lb.public_ip
+}
+
+
+security-project/sg.tf
+
+provider "aws" {}
+
+data "terraform_remote_state" "eip" {
+  backend = "s3"
+
+  config = {
+    bucket = "remote-state-bucket-day4"
+    key    = "network/eip.tfstate"
+    region = "us-east-1"
+  }
+}
+
+resource "aws_security_group" "allow_tls" {
+  name = "allow_tls"
+
+  ingress {
+    from_port = 443
+    to_port = 443
+    protocol = "tcp"
+    cidr_blocks = ["${data.terraform_remote_state.eip.outputs.eip_addr}/32"]
+  }
+}
+
+
+Multi Provider
+
+provider "aws" {
+  region = "us-east-1"
+}
+
+provider "aws" {
+  alias = "mumbai"
+  region = "ap-south-1"
+}
+
+resource "aws_eip" "myeip1" {
+  vpc = true
+}
+
+resource "aws_eip" "myeip2" {
+  vpc = true
+  provider = aws.mumbai
+}
+
+
+
+LABS
+
+Scenario 1:
+In a multi-project environment, you are tasked with managing infrastructure using Terraform. Project 1, responsible for foundational components, creates a VPC and an AWS EC2 instance. Project 2, focusing on application deployment, needs to launch an EC2 instance in the same VPC created by Project 1. Implement a solution where Project 2 accesses the remote state of Project 1 to retrieve the VPC information.
+
+Tasks:
+
+Project 1 - VPC Configuration:
+
+Set up Project 1 with a directory structure and initialize a remote state backend using an S3 bucket (e.g., "project1-remote-state-bucket").
+Create a VPC in Project 1, and launch an AWS EC2 instance within it.
+Configure outputs to expose the VPC ID.
+Project 2 - Accessing Remote State:
+
+Set up Project 2 in a separate directory with a similar remote state backend using a different S3 bucket (e.g., "project2-remote-state-bucket").
+Use the terraform_remote_state data source in Project 2 to access the VPC ID from Project 1.
+Create an AWS EC2 instance in Project 2, specifying the VPC ID retrieved from Project 1.
+Initialize and Apply:
+
+Run the necessary Terraform commands to initialize and apply the configurations for both Project 1 and Project 2.
+Verify that resources, including VPCs and EC2 instances, are created successfully.
+Cleanup:
+
+After verification, destroy the resources for both Project 1 and Project 2.
+Manually remove the S3 buckets used for remote state, ensuring proper cleanup.
+
+
+
+Scenerio 2:
+
+You are a DevOps engineer tasked with provisioning and managing the AWS infrastructure for a new microservices-based application. The infrastructure includes VPC configurations, subnets, and necessary networking components. Additionally, you are required to store the Terraform state file remotely in an S3 bucket.
+
+Question:
+
+Modular Infrastructure:
+
+Design a set of Terraform modules to create a modular infrastructure for the microservices-based application. Consider modules for VPC, subnets, and any other components you find necessary.
+VPC Configuration:
+
+Within the VPC module, allow customization of the VPC CIDR block and tags to accommodate different environments such as development, testing, and production.
+Subnet Configurations:
+
+Create a module for subnets that allows specifying different CIDR blocks and availability zones. Ensure that the number of subnets and availability zones is configurable.
+Backend Configuration:
+
+Implement a backend configuration using an S3 bucket for storing the Terraform state file. Consider best practices such as enabling encryption and using a separate DynamoDB table for state locking.
+Main Configuration:
+
+In the main Terraform configuration, use the modules designed in steps 1-3 to provision the infrastructure for the microservices-based application. Customize the configurations for a development environment.
+Terraform Apply:
+
+Demonstrate the process of initializing and applying the Terraform configuration. Highlight any prompts for variable values or confirmation during the apply phase.
+Verification:
+
+After applying the configuration, verify in the AWS Management Console that the VPC, subnets, and other infrastructure components have been created as expected.
+Destroy Resources:
+
+Implement the Terraform destroy command to clean up the resources. Ensure that the state file is removed from the S3 bucket and any associated resources are properly destroyed.
+
+
+
+
+Scenario 3:
+    
+Your organization has existing infrastructure resources that were created manually or using another provisioning tool. You are tasked with bringing these resources under Terraform management. In this lab, you'll use terraform import to import an existing resource into Terraform.
+
+Manually create a security group and import it in terraform
+
+
+
+DAY 5 - Assessment
+
+Assessment 1[utilize this in assessment 2]:
+    
+Imagine you are a DevOps engineer responsible for managing the infrastructure of a new project. The project requires the creation of multiple AWS VPCs, each with its own set of subnets and specific configurations. You need to design a Terraform configuration that can be easily customized for different environments (e.g., development, testing, production).
+
+Question:
+
+VPC Creation:
+
+Design a Terraform configuration to create an AWS VPC with the following specifications:
+CIDR block: 10.0.0.0/16
+Tags: { Name = "my-vpc", Environment = "dev" }
+Customization for Environments:
+
+Implement a way to easily customize the VPC configurations for different environments (dev, test, prod) using Terraform workspaces.
+Modularization:
+
+Provisioning Subnets:
+
+Extend your Terraform configuration to provision subnets within the VPC. Each subnet should have a unique CIDR block, and the number of subnets should be configurable.
+Dynamic Blocks:
+
+Utilize dynamic blocks to allow dynamic configuration of subnets, taking into account factors like availability zones.
+Workspace Usage:
+
+Demonstrate the use of Terraform workspaces to manage different environments. Apply your configuration for both development and production workspaces.
+Output and Verification:
+
+Implement output variables to display relevant information, such as the VPC ID and subnet details. Provide commands to verify the outputs after applying the Terraform configuration.
+
+-----------------------------------------------
+
+
+Assessment 2: Terraform Advanced Concepts Workshop
+
+You are participating in a hands-on Terraform workshop designed to deepen your understanding of advanced Terraform concepts. In this scenario-based question, you'll navigate through a series of tasks, applying your Terraform skills to real-world scenarios.
+
+Task 1: Setting Up and Version Control
+Imagine you are starting a new Terraform project for a cloud infrastructure.
+
+Create a directory structure for the project.
+Initialize a Git repository and commit the initial project structure.
+
+Task 2: Module Creation - VPC Configuration
+Your team frequently deploys Virtual Private Clouds (VPCs) on AWS, and you want to streamline this process using Terraform modules.
+
+Develop a reusable Terraform module for an AWS VPC with configurable parameters.
+Include input and output variables to enhance the module's flexibility and reusability.
+
+Task 3: Main Configuration
+In the main Terraform configuration, integrate the VPC module to create a fully-fledged VPC environment.
+
+Define additional resources such as security groups and subnets within the VPC.
+
+Task 4: Provisioners and Remote Execution
+As part of your application deployment, you need to install a specific software package on an EC2 instance.
+
+Apply a provisioner to the EC2 instance to accomplish this task.
+
+Task 5: Import Existing Resources
+You recently discovered that there is an existing EC2 instance deployed outside of Terraform, and you need to manage it within your Terraform project.
+
+Use terraform import to bring the existing EC2 instance under Terraform management.
+
+Task 6: Remote State Configuration
+To enhance collaboration and state management, set up a remote backend using AWS S3 and DynamoDB.
+
+Configure your Terraform project to store the state remotely.
+Implement DynamoDB as a state lock to prevent conflicts during concurrent executions.
+
+Task 7: Advanced Module Use - Multi-Tier Application
+You are tasked with deploying a multi-tier application stack consisting of a web server and a database.
+
+Develop an advanced module for the multi-tier application stack.
+Utilize input variables, outputs, and demonstrate dependencies within the module.
+
+Task 8: Combining Modules for a Complete Environment
+Combine the VPC module and the multi-tier application module to deploy a comprehensive environment.
+
+Showcase the ability to compose and reuse modules to create complex infrastructures.
+
+Validate the deployed infrastructure against expected specifications.
+
+Task 9: Destroy Resources and Cleanup
+After successfully testing your infrastructure, follow the proper procedures to destroy the deployed resources and clean up the environment.
+
+
+---------------------------------------------------------------------------------------------------------
+
+Additional Lab[Optional due to restricted region access]
+
+Lab: Deploying Resources Across Multiple Regions
+
+Objective:
+In this lab, you'll use Terraform to deploy S3 buckets across multiple AWS regions dynamically.
+
+Prerequisites:
+Install Terraform on your machine.
+Have AWS CLI configured with appropriate access.
+Lab Steps:
+1. Directory Structure:
+Create a directory for your Terraform configuration:
+
+$mkdir multi-region-lab
+$cd multi-region-lab
+
+2. Define Regions:
+Create a variables.tf file to define the list of AWS regions:
+
+# variables.tf
+
+variable "regions" {
+  default = ["us-east-1", "us-west-2", "eu-west-1"]
+}
+
+3. Configure Providers Dynamically:
+Create a main.tf file to configure AWS providers dynamically:
+
+# main.tf
+
+provider "aws" {
+  alias  = "default"
+  region = "us-east-1"  # Default region
+}
+
+dynamic "provider" {
+  for_each = toset(var.regions) - toset(["us-east-1"])
+
+  content {
+    alias  = provider.value
+    region = provider.value
+  }
+}
+
+4. Configure S3 Buckets Dynamically:
+Create a s3.tf file to configure S3 buckets dynamically across regions:
+
+# s3.tf
+
+variable "bucket_name_prefix" {
+  default = "example"
+}
+
+dynamic "aws_s3_bucket" "example" {
+  for_each = toset(var.regions)
+
+  content {
+    bucket = "${var.bucket_name_prefix}-${each.value}"
+    acl    = "private"
+
+    provider = aws[each.value == "us-east-1" ? "default" : each.value]
+  }
+}
+
+5. Initialize and Apply:
+Run the following commands to initialize and apply the Terraform configuration:
+
+$terraform init
+$terraform plan
+$terraform apply
+
+6. Verify Resources:
+Verify that S3 buckets have been created in the specified regions.
+
+7. Cleanup:
+After verification, destroy the created resources:
+
+$terraform destroy
+
+8. Cleanup S3 Buckets (Optional):
+Manually remove the S3 buckets since Terraform does not destroy the buckets during terraform destroy:
+
+$aws s3 rb s3://example-us-east-1 --force
+$aws s3 rb s3://example-us-west-2 --force
+$aws s3 rb s3://example-eu-west-1 --force
+
+
+
+Depends on ref:
+    
+depends_on = [aws_security_group.allow_all]
+
+
+
+
+
+
+
+
+
+
+
